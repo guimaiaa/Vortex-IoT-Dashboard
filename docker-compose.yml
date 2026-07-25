@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./Backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/vortex.db
+      - OFFLINE_THRESHOLD_SECONDS=30
+    volumes:
+      - backend-data:/app/data
+
+  frontend:
+    build:
+      context: ./Frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

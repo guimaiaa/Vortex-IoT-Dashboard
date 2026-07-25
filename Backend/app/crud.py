@@ -1,0 +1,69 @@
+from datetime import datetime, timezone
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models import Device, Measurement
+from app.schemas import MeasurementIn
+
+
+def upsert_device(db: Session, device_id: str, seen_at: datetime) -> Device:
+    device = db.get(Device, device_id)
+    if device is None:
+        device = Device(id=device_id, first_seen=seen_at, last_seen=seen_at)
+        db.add(device)
+    else:
+        device.last_seen = seen_at
+    return device
+
+
+def create_measurement(db: Session, payload: MeasurementIn) -> Measurement:
+    seen_at = datetime.now(timezone.utc)
+    upsert_device(db, payload.device, seen_at)
+    measurement = Measurement(
+        device_id=payload.device,
+        temperature=payload.temperature,
+        humidity=payload.humidity,
+        luminosity=payload.luminosity,
+        timestamp=payload.timestamp,
+        received_at=seen_at,
+    )
+    db.add(measurement)
+    db.commit()
+    db.refresh(measurement)
+    return measurement
+
+
+def list_measurements(
+    db: Session,
+    device_id: str | None = None,
+    since: datetime | None = None,
+    limit: int = 100,
+) -> list[Measurement]:
+    # Order by received_at (server clock, always UTC, always monotonic) rather than the
+    # device-supplied timestamp - a device's own clock can be wrong or change timezone/epoch
+    # between firmware updates, which would otherwise make "latest" pick a stale row forever.
+    stmt = select(Measurement).order_by(Measurement.received_at.desc()).limit(limit)
+    if device_id:
+        stmt = stmt.where(Measurement.device_id == device_id)
+    if since:
+        stmt = stmt.where(Measurement.timestamp >= since)
+    return list(db.execute(stmt).scalars())
+
+
+def get_latest_measurement(db: Session, device_id: str) -> Measurement | None:
+    stmt = (
+        select(Measurement)
+        .where(Measurement.device_id == device_id)
+        .order_by(Measurement.received_at.desc())
+        .limit(1)
+    )
+    return db.execute(stmt).scalars().first()
+
+
+def list_devices(db: Session) -> list[Device]:
+    return list(db.execute(select(Device).order_by(Device.id)).scalars())
+
+
+def get_device(db: Session, device_id: str) -> Device | None:
+    return db.get(Device, device_id)

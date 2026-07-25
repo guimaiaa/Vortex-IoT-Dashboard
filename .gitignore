@@ -1,0 +1,19 @@
+# Python
+Backend/.venv/
+Backend/__pycache__/
+Backend/**/__pycache__/
+Backend/.pytest_cache/
+Backend/*.db
+
+# Node
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env
+
+# PlatformIO
+Firmware/.pio/
+Firmware/.vscode/
+Firmware/include/secrets.h
+
+# OS
+.DS_Store
