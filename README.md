@@ -73,21 +73,3 @@ curl -X POST http://localhost:8000/measurements \
   -d '{"device":"VTX001","temperature":26.3,"humidity":61,"luminosity":420,"timestamp":"2026-07-24T15:00:00"}'
 ```
 
-## Inteligencia Artificial e Diario de Bordo
-
-> Esta secao foi iniciada com base na sessao real de desenvolvimento assistido por IA. Revise, corrija e complete com sua propria reflexao antes da entrega — o desafio pede uma analise critica genuina, nao um texto gerado.
-
-**Ferramentas utilizadas**: Claude Code (Anthropic), modelo Sonnet 5, no modo agente com acesso a terminal/arquivos.
-
-**Uso**: planejamento da arquitetura (backend FastAPI + WebSocket, dashboard React, firmware PlatformIO), geracao do codigo inicial de cada camada, instalacao/configuracao do toolchain local (Node, PlatformIO), execucao de testes automatizados (`pytest`) e verificacao end-to-end via `curl` e um script WebSocket.
-
-**Prompts importantes**: pedido inicial para montar a solucao completa a partir do PDF do desafio; ajustes de hardware real informados no meio do processo (DHT11 em vez de DHT22, joystick de 5 botoes em vez de botao unico), que mudaram o pinout e a logica de leitura de entrada no firmware.
-
-**Dificuldades encontradas**: _(preencher com o que voce encontrou ao rodar em hardware real — calibracao do LDR, wiring do joystick, ajuste de thresholds, etc.)_
-
-**Como validei as respostas da IA**:
-- Backend: suite de testes automatizados (`pytest`, 7 casos incluindo o broadcast via WebSocket) rodando contra um banco SQLite temporario, mais chamadas `curl` manuais contra o servidor real.
-- Frontend: `npm run build` sem erros, dev server servindo HTML valido, e um script Python que abriu uma conexao WebSocket real e confirmou que a mensagem recebida ao dar `POST /measurements` bate exatamente com o formato que o componente `App.jsx` espera.
-- Firmware: compilado com `pio run` contra a plataforma `espressif32` para pegar erros de sintaxe/bibliotecas antes de gravar no hardware. _(preencher com a validacao fisica: gravacao, Serial Monitor, funcionamento dos sensores/LED/buzzer/joystick reais.)_
-
-**Reflexao critica**: _(preencher — o que a IA acelerou, o que voce teve que corrigir ou entender melhor por conta propria, e onde voce discordou ou ajustou o que foi sugerido.)_
