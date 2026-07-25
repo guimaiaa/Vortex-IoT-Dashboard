@@ -42,7 +42,9 @@
 .status-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  column-gap: 12px;
 }
 
 .device-id {
@@ -58,7 +60,8 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -81,6 +84,46 @@
 .status-lastseen {
   color: var(--text-muted);
   font-weight: 400;
+}
+
+.next-update {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .next-update {
+    margin-left: auto;
+  }
+}
+
+.manual-update-toast {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid var(--accent);
+  color: var(--text-h);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  animation: manual-update-fade 2.5s ease forwards;
+}
+
+@keyframes manual-update-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .metrics-grid {
@@ -136,6 +179,58 @@
   font-size: 14px;
   margin-bottom: 8px;
   color: var(--text-h);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.settings-form input {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.settings-form button {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.settings-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.settings-error {
+  color: var(--offline);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.settings-saved {
+  color: var(--online);
+  font-size: 13px;
+  margin: 8px 0 0;
 }
 
 .chart-empty {

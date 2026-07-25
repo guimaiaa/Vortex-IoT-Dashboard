@@ -25,6 +25,9 @@
 #define ONBOARD_LED_PIN 2
 
 #define BUZZER_PIN 26
+#define BUZZER_TONE_HZ 2000
+#define BUZZER_BEEP_ON_MS 150  // chirp duration while alerting
+#define BUZZER_BEEP_OFF_MS 350 // silence between chirps
 
 // 5-button joystick module: resistor-ladder type, all 5 buttons share a single ADC pin,
 // each button produces a different raw analogRead() value. CENTER fulfills the brief's

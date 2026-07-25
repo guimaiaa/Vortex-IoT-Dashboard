@@ -41,7 +41,9 @@ flowchart LR
 | `GET` | `/measurements` | Lista leituras, filtros: `device_id`, `since`, `limit` |
 | `GET` | `/devices` | Lista todos os dispositivos com status online/offline e ultima leitura |
 | `GET` | `/devices/{id}` | Detalhe de um dispositivo |
-| `WS` | `/ws` | Canal de eventos em tempo real (`type: "measurement"` e `type: "status"`) |
+| `GET` | `/settings` | Limites de alerta atuais (temperatura maxima/minima) |
+| `PUT` | `/settings` | Atualiza os limites de alerta (valida `temp_low < temp_high`) |
+| `WS` | `/ws` | Canal de eventos em tempo real (`type: "measurement"`, `type: "status"`, `type: "settings"`) |
 
 ### Payload de entrada (`POST /measurements`)
 
@@ -66,6 +68,13 @@ flowchart LR
 
 - `devices(id PK, first_seen, last_seen)`
 - `measurements(id PK, device_id FK -> devices.id, temperature, humidity, luminosity, timestamp, received_at)`
+- `settings(id PK, temp_high_threshold, temp_low_threshold)` - linha unica (id=1), configuracao global de alerta
+
+Retencao de dados: um processo em background (`cleanup_loop`) roda a cada `CLEANUP_INTERVAL_SECONDS` (1h por padrao, tambem uma vez imediatamente no boot) e apaga medicoes com `received_at` mais antigo que `MEASUREMENT_RETENTION_DAYS` (2 dias por padrao). Sem isso a tabela `measurements` cresceria indefinidamente, ja que nao ha nenhum outro mecanismo de expurgo.
+
+## Limites de alerta configuraveis pelo dashboard
+
+O card "Configuracao de alerta" no dashboard permite editar `temp_high_threshold`/`temp_low_threshold` sem regravar o firmware. Como o ESP32 nunca recebe conexao (so faz requisicoes), ele busca esses valores via `GET /settings` a cada ciclo de publicacao (`PUBLISH_INTERVAL_MS`, 10s por padrao) - ou seja, uma mudanca no dashboard leva ate um ciclo para ser aplicada no firmware fisico. Os valores em `Firmware/include/config.h` (`TEMP_HIGH_THRESHOLD_C`/`TEMP_LOW_THRESHOLD_C`) continuam existindo como fallback: sao usados no boot e sempre que o `GET /settings` falha (Wi-Fi fora do ar, backend indisponivel).
 
 Status online/offline e derivado (nao armazenado): um dispositivo esta `online` se `now - last_seen <= OFFLINE_THRESHOLD_SECONDS` (30s por padrao).
 
@@ -85,4 +94,4 @@ stateDiagram-v2
     SENSOR_ERROR --> CONNECTING: Wi-Fi cai
 ```
 
-LED onboard (Wemos D1 R32, cor unica — sem LED RGB externo): estado comunicado pelo padrao de piscada, nao por cor. `CONNECTING` = piscando lento (500ms), `OK` = aceso fixo, `ALERT`/`SENSOR_ERROR` = piscando rapido (150ms). O buzzer soa apenas em `ALERT`, e pode ser silenciado pelo botao central do joystick ate a proxima vez que o alerta for disparado novamente.
+LED onboard (Wemos D1 R32, cor unica — sem LED RGB externo): estado comunicado pelo padrao de piscada, nao por cor. `CONNECTING` = piscando lento (500ms), `OK` = aceso fixo, `ALERT`/`SENSOR_ERROR` = piscando rapido (150ms). O buzzer soa apenas em `ALERT`, em bipes periodicos (150ms ligado / 350ms desligado, configuravel via `BUZZER_BEEP_ON_MS`/`BUZZER_BEEP_OFF_MS` em `config.h`) em vez de tom continuo, e pode ser silenciado pelo botao central do joystick ate a proxima vez que o alerta for disparado novamente.

@@ -24,12 +24,20 @@ bool wifiWasConnected = false;
 unsigned long lastPublishMs = 0;
 unsigned long lastWifiAttemptMs = 0;
 bool forcePublish = true; // trigger an immediate sensor read/publish on boot
+const char *forcePublishReason = "boot"; // "boot" | "button" - read only while forcePublish is true
 bool buzzerMuted = false;
 bool lastSensorOk = false;
 
 float lastTemperature = NAN;
 float lastHumidity = NAN;
 int lastLuminosity = 0;
+
+// Alert thresholds - start from the config.h defaults, then get overwritten by
+// whatever is configured on the dashboard (fetchSettings() polls /settings each
+// cycle). The ESP32 never receives inbound connections, so polling is the only way
+// it can find out the dashboard changed something.
+float tempHighThreshold = TEMP_HIGH_THRESHOLD_C;
+float tempLowThreshold = TEMP_LOW_THRESHOLD_C;
 
 enum class JoyButton { NONE, UP, DOWN, LEFT, RIGHT, CENTER };
 
@@ -112,7 +120,7 @@ bool readSensors(float &temperature, float &humidity, int &luminosity) {
   return true;
 }
 
-void publishMeasurement(float temperature, float humidity, int luminosity) {
+void publishMeasurement(float temperature, float humidity, int luminosity, const char *trigger) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[HTTP] Skipping publish, WiFi not connected");
     return;
@@ -129,6 +137,7 @@ void publishMeasurement(float temperature, float humidity, int luminosity) {
   doc["humidity"] = humidity;
   doc["luminosity"] = luminosity;
   doc["timestamp"] = isoTimestamp();
+  doc["trigger"] = trigger; // "interval" | "boot" | "button" - lets the dashboard flag manual updates
 
   String body;
   serializeJson(doc, body);
@@ -142,7 +151,39 @@ void publishMeasurement(float temperature, float humidity, int luminosity) {
   http.end();
 }
 
-void doSensorCycle() {
+// Polls the dashboard-configured alert thresholds. Falls back silently to whatever
+// was already loaded (config.h defaults on first boot) if WiFi is down or the
+// request fails - a stale threshold beats a crash.
+void fetchSettings() {
+  if (WiFi.status() != WL_CONNECTED)
+    return;
+
+  HTTPClient http;
+  http.begin(String(SERVER_URL) + "/settings");
+  http.setTimeout(HTTP_TIMEOUT_MS);
+
+  int status = http.GET();
+  if (status == 200) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, http.getStream());
+    if (!err) {
+      float newHigh = doc["temp_high_threshold"] | tempHighThreshold;
+      float newLow = doc["temp_low_threshold"] | tempLowThreshold;
+      if (newHigh != tempHighThreshold || newLow != tempLowThreshold) {
+        Serial.printf("[Settings] Thresholds updated: high=%.1fC low=%.1fC\n", newHigh, newLow);
+      }
+      tempHighThreshold = newHigh;
+      tempLowThreshold = newLow;
+    } else {
+      Serial.printf("[Settings] JSON parse failed: %s\n", err.c_str());
+    }
+  } else {
+    Serial.printf("[Settings] GET /settings -> %d\n", status);
+  }
+  http.end();
+}
+
+void doSensorCycle(const char *trigger) {
   float temperature, humidity;
   int luminosity;
   lastSensorOk = readSensors(temperature, humidity, luminosity);
@@ -151,7 +192,7 @@ void doSensorCycle() {
     lastHumidity = humidity;
     lastLuminosity = luminosity;
     Serial.printf("[Sensor] T=%.1fC H=%.1f%% L=%d\n", temperature, humidity, luminosity);
-    publishMeasurement(temperature, humidity, luminosity);
+    publishMeasurement(temperature, humidity, luminosity, trigger);
   }
 }
 
@@ -164,7 +205,7 @@ void updateState() {
     currentState = SystemState::SENSOR_ERROR;
     return;
   }
-  if (lastTemperature >= TEMP_HIGH_THRESHOLD_C || lastTemperature <= TEMP_LOW_THRESHOLD_C) {
+  if (lastTemperature >= tempHighThreshold || lastTemperature <= tempLowThreshold) {
     currentState = SystemState::ALERT;
   } else {
     currentState = SystemState::OK;
@@ -195,15 +236,22 @@ void updateLed() {
 
 bool buzzerSounding = false;
 
+// Chirps periodically (BUZZER_BEEP_ON_MS on / BUZZER_BEEP_OFF_MS off) instead of one
+// continuous tone while alerting - much easier to notice and less grating to listen to.
 void updateBuzzer() {
-  bool shouldSound = (currentState == SystemState::ALERT) && !buzzerMuted;
-  // Only call tone()/noTone() on state transitions, not every loop() iteration.
-  // On the ESP32 Arduino core 3.x, noTone() on a pin that tone() never attached
-  // to the LEDC peripheral logs "LEDC is not initialized" - which happened here
-  // because updateBuzzer() used to call noTone() unconditionally from the very
-  // first loop, before any tone() call had attached the pin.
+  bool alerting = (currentState == SystemState::ALERT) && !buzzerMuted;
+  bool shouldSound = false;
+  if (alerting) {
+    unsigned long phase = millis() % (BUZZER_BEEP_ON_MS + BUZZER_BEEP_OFF_MS);
+    shouldSound = phase < BUZZER_BEEP_ON_MS;
+  }
+
+  // Only call tone()/noTone() on transitions, not every loop() iteration. On the
+  // ESP32 Arduino core 3.x, noTone() on a pin that tone() never attached to the LEDC
+  // peripheral logs "LEDC is not initialized" - which happened here before because
+  // updateBuzzer() used to call noTone() unconditionally from the very first loop.
   if (shouldSound && !buzzerSounding) {
-    tone(BUZZER_PIN, 2000);
+    tone(BUZZER_PIN, BUZZER_TONE_HZ);
     buzzerSounding = true;
   } else if (!shouldSound && buzzerSounding) {
     noTone(BUZZER_PIN);
@@ -261,6 +309,7 @@ void handleJoystick() {
       Serial.println("[Joystick] CENTER -> mute buzzer + force publish");
       buzzerMuted = true;
       forcePublish = true;
+      forcePublishReason = "button";
     }
     // Directional presses are classified and debounced but intentionally left as
     // no-ops - extension hooks for later (e.g. cycling a display) rather than scope
@@ -302,9 +351,11 @@ void loop() {
 
   unsigned long now = millis();
   if (forcePublish || now - lastPublishMs >= PUBLISH_INTERVAL_MS) {
+    const char *trigger = forcePublish ? forcePublishReason : "interval";
     lastPublishMs = now;
     forcePublish = false;
-    doSensorCycle();
+    fetchSettings();
+    doSensorCycle(trigger);
   }
 
   updateState();

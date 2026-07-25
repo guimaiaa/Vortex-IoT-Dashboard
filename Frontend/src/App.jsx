@@ -1,19 +1,25 @@
 import { useEffect, useState } from "react";
-import { fetchDevices, fetchMeasurements } from "./api";
+import { fetchDevices, fetchMeasurements, fetchSettings, updateSettings } from "./api";
 import { useWebSocket } from "./hooks/useWebSocket";
 import MetricCard from "./components/MetricCard";
 import StatusBadge from "./components/StatusBadge";
 import HistoryChart from "./components/HistoryChart";
 import DeviceSelector from "./components/DeviceSelector";
+import AlertSettings from "./components/AlertSettings";
 import "./App.css";
 
 const HISTORY_LIMIT = 50;
+const PUBLISH_INTERVAL_S = Number(import.meta.env.VITE_PUBLISH_INTERVAL_S) || 10;
 
 export default function App() {
   const [devices, setDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [error, setError] = useState(null);
+  const [lastMeasurementAt, setLastMeasurementAt] = useState(null);
+  const [secondsUntilNext, setSecondsUntilNext] = useState(null);
+  const [manualUpdateFlash, setManualUpdateFlash] = useState(false);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     fetchDevices()
@@ -22,7 +28,15 @@ export default function App() {
         setSelectedDeviceId((current) => current ?? data[0]?.id ?? null);
       })
       .catch((err) => setError(err.message));
+    fetchSettings()
+      .then(setSettings)
+      .catch((err) => setError(err.message));
   }, []);
+
+  async function handleSaveSettings(tempHigh, tempLow) {
+    const updated = await updateSettings(tempHigh, tempLow);
+    setSettings(updated); // WS broadcast will also confirm this, but apply right away
+  }
 
   useEffect(() => {
     if (!selectedDeviceId) return;
@@ -31,9 +45,30 @@ export default function App() {
       .catch((err) => setError(err.message));
   }, [selectedDeviceId]);
 
+  const latestReceivedAt = devices.find((d) => d.id === selectedDeviceId)?.latest?.received_at;
+
+  useEffect(() => {
+    if (latestReceivedAt) setLastMeasurementAt(new Date(latestReceivedAt).getTime());
+  }, [latestReceivedAt]);
+
+  useEffect(() => {
+    if (!lastMeasurementAt) return;
+    const tick = () => {
+      const elapsedS = (Date.now() - lastMeasurementAt) / 1000;
+      setSecondsUntilNext(Math.max(0, Math.ceil(PUBLISH_INTERVAL_S - elapsedS)));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lastMeasurementAt]);
+
   function handleMessage(message) {
     if (message.type === "status") {
       setDevices(message.devices);
+      return;
+    }
+    if (message.type === "settings") {
+      setSettings(message.data);
       return;
     }
     if (message.type === "measurement") {
@@ -46,6 +81,11 @@ export default function App() {
       setSelectedDeviceId((current) => current ?? message.device.id);
       if (message.data.device_id === selectedDeviceId) {
         setMeasurements((prev) => [message.data, ...prev].slice(0, HISTORY_LIMIT));
+        setLastMeasurementAt(Date.now());
+        if (message.trigger === "button") {
+          setManualUpdateFlash(true);
+          setTimeout(() => setManualUpdateFlash(false), 2500);
+        }
       }
     }
   }
@@ -71,12 +111,20 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {manualUpdateFlash && (
+        <div className="manual-update-toast">Atualizado manualmente pelo botao do dispositivo</div>
+      )}
 
       {selectedDevice ? (
         <>
           <section className="status-row">
             <span className="device-id">{selectedDevice.id}</span>
             <StatusBadge online={selectedDevice.online} lastSeen={selectedDevice.last_seen} />
+            {secondsUntilNext !== null && (
+              <span className="next-update">
+                {secondsUntilNext > 0 ? `Proxima leitura em ${secondsUntilNext}s` : "Atualizando..."}
+              </span>
+            )}
           </section>
 
           <section className="metrics-grid">
@@ -121,6 +169,11 @@ export default function App() {
               dataKey="luminosity"
               unit="lx"
               color="#facc15"
+            />
+            <AlertSettings
+              settings={settings}
+              onSave={handleSaveSettings}
+              publishIntervalS={PUBLISH_INTERVAL_S}
             />
           </section>
         </>

@@ -1,10 +1,14 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import Device, Measurement
+from app.models import Device, Measurement, Settings
 from app.schemas import MeasurementIn
+
+SETTINGS_ROW_ID = 1
+DEFAULT_TEMP_HIGH_THRESHOLD = 30.0
+DEFAULT_TEMP_LOW_THRESHOLD = 10.0
 
 
 def upsert_device(db: Session, device_id: str, seen_at: datetime) -> Device:
@@ -51,6 +55,15 @@ def list_measurements(
     return list(db.execute(stmt).scalars())
 
 
+def delete_old_measurements(db: Session, cutoff: datetime) -> int:
+    # received_at (server clock, always UTC) rather than the device-supplied timestamp -
+    # same reasoning as list_measurements, a device's own clock isn't trustworthy enough
+    # to decide what gets deleted.
+    result = db.execute(delete(Measurement).where(Measurement.received_at < cutoff))
+    db.commit()
+    return result.rowcount
+
+
 def get_latest_measurement(db: Session, device_id: str) -> Measurement | None:
     stmt = (
         select(Measurement)
@@ -67,3 +80,26 @@ def list_devices(db: Session) -> list[Device]:
 
 def get_device(db: Session, device_id: str) -> Device | None:
     return db.get(Device, device_id)
+
+
+def get_settings(db: Session) -> Settings:
+    settings = db.get(Settings, SETTINGS_ROW_ID)
+    if settings is None:
+        settings = Settings(
+            id=SETTINGS_ROW_ID,
+            temp_high_threshold=DEFAULT_TEMP_HIGH_THRESHOLD,
+            temp_low_threshold=DEFAULT_TEMP_LOW_THRESHOLD,
+        )
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    return settings
+
+
+def update_settings(db: Session, temp_high: float, temp_low: float) -> Settings:
+    settings = get_settings(db)
+    settings.temp_high_threshold = temp_high
+    settings.temp_low_threshold = temp_low
+    db.commit()
+    db.refresh(settings)
+    return settings

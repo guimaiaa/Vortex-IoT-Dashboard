@@ -22,6 +22,17 @@ class Device(Base):
     )
 
 
+class Settings(Base):
+    __tablename__ = "settings"
+
+    # Single-row table (id is always 1) - one global alert config, since this project
+    # only ever has one physical device. Per-device thresholds would need a device_id
+    # column here instead, but that's not something the current scope calls for.
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    temp_high_threshold: Mapped[float] = mapped_column(Float, default=30.0)
+    temp_low_threshold: Mapped[float] = mapped_column(Float, default=10.0)
+
+
 class Measurement(Base):
     __tablename__ = "measurements"
 
