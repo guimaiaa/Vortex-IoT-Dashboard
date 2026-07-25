@@ -63,6 +63,16 @@ docker compose up --build
 
 Sobe backend (`:8000`) e frontend (`:5173` servido via Vite preview) juntos.
 
+## Deploy em nuvem (Render)
+
+O backend e o dashboard tambem podem rodar publicamente, sem depender do seu computador ligado:
+
+1. **Backend**: Render → New → Web Service → conecta o repositorio → Root Directory `Backend` (Docker, plano Free). Anota a URL publica gerada (`https://SEU-BACKEND.onrender.com`).
+2. **Frontend**: Render → New → Static Site → mesmo repositorio → Root Directory `Frontend`, Build Command `npm install && npm run build`, Publish Directory `dist`. Define a env var `VITE_API_URL` com a URL do backend do passo 1.
+3. **Firmware**: em `Firmware/include/config.h`, troca `SERVER_URL` para a URL publica do backend (com `https://`) — o firmware ja detecta automaticamente e usa `WiFiClientSecure` (necessario, o Render so aceita HTTPS).
+
+Limitacoes do plano gratuito: o backend "hiberna" apos ~15min sem uso (primeira requisicao depois disso demora uns 30-50s pra acordar), e o disco nao e persistente — o historico de medicoes no SQLite se perde a cada redeploy/reinicio do servico.
+
 ## Testando sem hardware fisico
 
 Voce pode simular o ESP32 com `curl`:

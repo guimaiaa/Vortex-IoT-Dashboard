@@ -4,9 +4,13 @@
 #include "secrets.h"
 
 // ---- Backend ----
-// Use your backend machine's LAN IP, not localhost - the ESP32 is a separate device on the network.
-// Find it with `ipconfig getifaddr en0` (Wi-Fi) or `ifconfig` on the machine running the backend.
-#define SERVER_URL "http://192.168.0.162:8000"
+// Local testing: use your backend machine's LAN IP, not localhost - the ESP32 is a
+// separate device on the network. Find it with `ipconfig getifaddr en0` (Wi-Fi) or
+// `ifconfig` on the machine running the backend.
+// Cloud deploy (e.g. Render): use the public https:// URL of the deployed backend
+// service instead - beginHttp() in main.cpp automatically switches to WiFiClientSecure
+// whenever this starts with "https://".
+#define SERVER_URL "https://vortex-iot-backend.onrender.com"
 
 // ---- Device identity ----
 #define DEVICE_ID "VTX001"

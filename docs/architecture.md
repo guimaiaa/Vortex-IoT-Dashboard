@@ -38,7 +38,7 @@ flowchart LR
 | Metodo | Rota | Descricao |
 |---|---|---|
 | `POST` | `/measurements` | Recebe uma leitura do ESP32, cria o dispositivo se nao existir, transmite via WS |
-| `GET` | `/measurements` | Lista leituras, filtros: `device_id`, `since`, `limit` |
+| `GET` | `/measurements` | Lista leituras, filtros: `device_id`, `since`, `until`, `limit` |
 | `GET` | `/devices` | Lista todos os dispositivos com status online/offline e ultima leitura |
 | `GET` | `/devices/{id}` | Detalhe de um dispositivo |
 | `GET` | `/settings` | Limites de alerta atuais (temperatura maxima/minima) |
@@ -71,6 +71,10 @@ flowchart LR
 - `settings(id PK, temp_high_threshold, temp_low_threshold)` - linha unica (id=1), configuracao global de alerta
 
 Retencao de dados: um processo em background (`cleanup_loop`) roda a cada `CLEANUP_INTERVAL_SECONDS` (1h por padrao, tambem uma vez imediatamente no boot) e apaga medicoes com `received_at` mais antigo que `MEASUREMENT_RETENTION_DAYS` (2 dias por padrao). Sem isso a tabela `measurements` cresceria indefinidamente, ja que nao ha nenhum outro mecanismo de expurgo.
+
+## Pesquisa historica
+
+O card "Pesquisar por data e hora" no dashboard deixa escolher um instante e uma janela (+/- 15min a +/- 6h), consulta `GET /measurements?since=...&until=...` e mostra estatisticas (min/media/max) e graficos de temperatura/umidade/luminosidade daquele periodo, sem interferir na visualizacao "ao vivo" dos cards do topo.
 
 ## Limites de alerta configuraveis pelo dashboard
 

@@ -103,10 +103,11 @@ async def post_measurement(payload: MeasurementIn, db: Session = Depends(get_db)
 def get_measurements(
     device_id: str | None = None,
     since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
-    return crud.list_measurements(db, device_id=device_id, since=since, limit=limit)
+    return crud.list_measurements(db, device_id=device_id, since=since, until=until, limit=limit)
 
 
 @app.get("/devices", response_model=list[DeviceOut])

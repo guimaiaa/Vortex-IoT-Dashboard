@@ -14,6 +14,16 @@ export async function fetchMeasurements(deviceId, limit = 50) {
   return res.json();
 }
 
+export async function searchMeasurements(deviceId, since, until, limit = 3000) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (deviceId) params.set("device_id", deviceId);
+  if (since) params.set("since", since);
+  if (until) params.set("until", until);
+  const res = await fetch(`${API_BASE}/measurements?${params}`);
+  if (!res.ok) throw new Error("Failed to search measurements");
+  return res.json();
+}
+
 export async function fetchSettings() {
   const res = await fetch(`${API_BASE}/settings`);
   if (!res.ok) throw new Error("Failed to fetch settings");

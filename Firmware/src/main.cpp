@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <time.h>
 
 #include "config.h"
@@ -15,6 +16,21 @@ Adafruit_BME280 bme;
 #include <DHT.h>
 DHT dht(DHT_PIN, DHT_TYPE);
 #endif
+
+// Used only when SERVER_URL starts with "https://" (e.g. a cloud deploy like Render,
+// which only serves TLS - there's no plain-HTTP option). setInsecure() skips certificate
+// validation entirely: fine for a hobby/challenge project talking to a known backend,
+// but not something you'd want for anything security-sensitive.
+WiFiClientSecure secureClient;
+
+void beginHttp(HTTPClient &http, const String &path) {
+  String url = String(SERVER_URL) + path;
+  if (url.startsWith("https://")) {
+    http.begin(secureClient, url);
+  } else {
+    http.begin(url);
+  }
+}
 
 enum class SystemState { CONNECTING, OK, ALERT, SENSOR_ERROR };
 
@@ -127,7 +143,7 @@ void publishMeasurement(float temperature, float humidity, int luminosity, const
   }
 
   HTTPClient http;
-  http.begin(String(SERVER_URL) + "/measurements");
+  beginHttp(http, "/measurements");
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(HTTP_TIMEOUT_MS);
 
@@ -159,7 +175,7 @@ void fetchSettings() {
     return;
 
   HTTPClient http;
-  http.begin(String(SERVER_URL) + "/settings");
+  beginHttp(http, "/settings");
   http.setTimeout(HTTP_TIMEOUT_MS);
 
   int status = http.GET();
@@ -338,6 +354,8 @@ void setup() {
 #else
   dht.begin();
 #endif
+
+  secureClient.setInsecure();
 
   connectWifi();
   setupTime();

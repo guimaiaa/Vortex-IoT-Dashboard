@@ -6,6 +6,7 @@ import StatusBadge from "./components/StatusBadge";
 import HistoryChart from "./components/HistoryChart";
 import DeviceSelector from "./components/DeviceSelector";
 import AlertSettings from "./components/AlertSettings";
+import HistorySearch from "./components/HistorySearch";
 import "./App.css";
 
 const HISTORY_LIMIT = 50;
@@ -175,6 +176,7 @@ export default function App() {
               onSave={handleSaveSettings}
               publishIntervalS={PUBLISH_INTERVAL_S}
             />
+            <HistorySearch deviceId={selectedDeviceId} />
           </section>
         </>
       ) : (

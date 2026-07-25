@@ -42,16 +42,21 @@ def list_measurements(
     db: Session,
     device_id: str | None = None,
     since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = 100,
 ) -> list[Measurement]:
     # Order by received_at (server clock, always UTC, always monotonic) rather than the
     # device-supplied timestamp - a device's own clock can be wrong or change timezone/epoch
     # between firmware updates, which would otherwise make "latest" pick a stale row forever.
+    # since/until filter on `timestamp` though (the device-local wall-clock reading) - that's
+    # what a date/time picker in the dashboard naturally represents.
     stmt = select(Measurement).order_by(Measurement.received_at.desc()).limit(limit)
     if device_id:
         stmt = stmt.where(Measurement.device_id == device_id)
     if since:
         stmt = stmt.where(Measurement.timestamp >= since)
+    if until:
+        stmt = stmt.where(Measurement.timestamp <= until)
     return list(db.execute(stmt).scalars())
 
 
