@@ -73,6 +73,16 @@ O backend e o dashboard tambem podem rodar publicamente, sem depender do seu com
 
 Limitacoes do plano gratuito: o backend "hiberna" apos ~15min sem uso (primeira requisicao depois disso demora uns 30-50s pra acordar), e o disco nao e persistente — o historico de medicoes no SQLite se perde a cada redeploy/reinicio do servico.
 
+### Dominio proprio sob um caminho (Cloudflare Worker)
+
+O dashboard tambem esta acessivel em `pulseorigin.com.br/iot-dashboard`, sem afetar o resto do site que ja roda nesse dominio. Como o Render so oferece dominio customizado no nivel de (sub)dominio inteiro (nao em um caminho especifico de um dominio existente), a solucao foi um **Cloudflare Worker** fazendo proxy:
+
+1. `Frontend/vite.config.js` builda com `base: "/iot-dashboard/"` — todo asset do HTML/JS referencia esse prefixo.
+2. Um Cloudflare Worker (script em `docs/cloudflare-worker.js`) intercepta as requisicoes em `pulseorigin.com.br/iot-dashboard*`, remove esse prefixo e busca o conteudo real no Render (que continua servindo os arquivos na raiz dele), devolvendo a resposta como se fosse do proprio dominio.
+3. A URL no navegador nunca muda para `onrender.com` — o proxy acontece de forma transparente na borda da Cloudflare.
+
+Efeito colateral aceito: como o build agora embute `/iot-dashboard/` em todos os caminhos, acessar `vortex-iot-frontend.onrender.com` diretamente (sem passar pelo proxy) quebra o carregamento dos assets — o dashboard foi desenhado pra ser acessado so pelo dominio proprio a partir de agora.
+
 ## Testando sem hardware fisico
 
 Voce pode simular o ESP32 com `curl`:

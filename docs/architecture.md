@@ -99,3 +99,7 @@ stateDiagram-v2
 ```
 
 LED onboard (Wemos D1 R32, cor unica — sem LED RGB externo): estado comunicado pelo padrao de piscada, nao por cor. `CONNECTING` = piscando lento (500ms), `OK` = aceso fixo, `ALERT`/`SENSOR_ERROR` = piscando rapido (150ms). O buzzer soa apenas em `ALERT`, em bipes periodicos (150ms ligado / 350ms desligado, configuravel via `BUZZER_BEEP_ON_MS`/`BUZZER_BEEP_OFF_MS` em `config.h`) em vez de tom continuo, e pode ser silenciado pelo botao central do joystick ate a proxima vez que o alerta for disparado novamente.
+
+## Deploy: Render + Cloudflare Worker (dominio proprio)
+
+Producao roda em tres pecas: backend (Render Web Service, Docker), frontend (Render Static Site, build com `base: "/iot-dashboard/"`) e um Cloudflare Worker (`docs/cloudflare-worker.js`) que faz proxy de `pulseorigin.com.br/iot-dashboard*` para o Static Site do Render, removendo o prefixo antes de repassar. Ver secao "Deploy em nuvem" no README para o passo a passo completo.
