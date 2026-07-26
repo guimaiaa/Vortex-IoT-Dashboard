@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { searchMeasurements } from "../api";
 import HistoryChart from "./HistoryChart";
+import { withLuminosityPercent } from "../luminosity";
 
 const WINDOW_OPTIONS = [
-  { label: "+/- 15 min", minutes: 15 },
   { label: "+/- 30 min", minutes: 30 },
   { label: "+/- 1 hora", minutes: 60 },
   { label: "+/- 3 horas", minutes: 180 },
   { label: "+/- 6 horas", minutes: 360 },
+  { label: "+/- 12 horas", minutes: 720 },
+  { label: "+/- 24 horas", minutes: 1440 },
 ];
 
 function pad(n) {
@@ -30,7 +32,7 @@ function computeStats(values) {
   return { min, max, avg };
 }
 
-export default function HistorySearch({ deviceId }) {
+export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
   const now = new Date();
   const [date, setDate] = useState(toDateValue(now));
   const [time, setTime] = useState(toTimeValue(now));
@@ -47,7 +49,11 @@ export default function HistorySearch({ deviceId }) {
       const center = new Date(`${date}T${time}`);
       const since = `${toDateValue(new Date(center.getTime() - windowMinutes * 60000))}T${toTimeValue(new Date(center.getTime() - windowMinutes * 60000))}`;
       const until = `${toDateValue(new Date(center.getTime() + windowMinutes * 60000))}T${toTimeValue(new Date(center.getTime() + windowMinutes * 60000))}`;
-      const data = await searchMeasurements(deviceId, since, until);
+      // Window covers windowMinutes on both sides of the chosen instant - size the
+      // limit to fit the whole range at the known publish cadence, with some buffer,
+      // otherwise a 12h/24h search would silently get truncated to the most recent slice.
+      const limit = Math.ceil((windowMinutes * 2 * 60) / publishIntervalS) + 100;
+      const data = await searchMeasurements(deviceId, since, until, limit);
       setResults(data);
     } catch (err) {
       setError(err.message);
@@ -56,9 +62,13 @@ export default function HistorySearch({ deviceId }) {
     }
   }
 
+  const resultsWithLuminosityPercent = results ? withLuminosityPercent(results) : null;
+
   const tempStats = results ? computeStats(results.map((m) => m.temperature)) : null;
   const humidityStats = results ? computeStats(results.map((m) => m.humidity)) : null;
-  const luminosityStats = results ? computeStats(results.map((m) => m.luminosity)) : null;
+  const luminosityStats = resultsWithLuminosityPercent
+    ? computeStats(resultsWithLuminosityPercent.map((m) => m.luminosity))
+    : null;
 
   return (
     <div className="chart-card search-card">
@@ -117,9 +127,9 @@ export default function HistorySearch({ deviceId }) {
             <div className="search-stat">
               <span className="search-stat-label">Luminosidade</span>
               <span className="search-stat-value">
-                {luminosityStats.min.toFixed(0)}&ndash;{luminosityStats.max.toFixed(0)}lx
+                {luminosityStats.min.toFixed(0)}&ndash;{luminosityStats.max.toFixed(0)}%
               </span>
-              <span className="search-stat-avg">media {luminosityStats.avg.toFixed(0)}lx</span>
+              <span className="search-stat-avg">media {luminosityStats.avg.toFixed(0)}%</span>
             </div>
           </div>
           <div className="search-charts">
@@ -138,10 +148,10 @@ export default function HistorySearch({ deviceId }) {
               color="#38bdf8"
             />
             <HistoryChart
-              title="Luminosidade (lx)"
-              data={results}
+              title="Luminosidade (%)"
+              data={resultsWithLuminosityPercent}
               dataKey="luminosity"
-              unit="lx"
+              unit="%"
               color="#facc15"
             />
           </div>

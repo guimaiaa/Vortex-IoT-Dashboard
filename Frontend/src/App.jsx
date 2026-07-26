@@ -7,6 +7,7 @@ import HistoryChart from "./components/HistoryChart";
 import DeviceSelector from "./components/DeviceSelector";
 import AlertSettings from "./components/AlertSettings";
 import HistorySearch from "./components/HistorySearch";
+import { toLuminosityPercent, withLuminosityPercent } from "./luminosity";
 import "./App.css";
 
 const HISTORY_LIMIT = 50;
@@ -17,8 +18,7 @@ export default function App() {
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [measurements, setMeasurements] = useState([]);
   const [error, setError] = useState(null);
-  const [lastMeasurementAt, setLastMeasurementAt] = useState(null);
-  const [secondsUntilNext, setSecondsUntilNext] = useState(null);
+  const [secondsSinceLastMeasurement, setSecondsSinceLastMeasurement] = useState(null);
   const [manualUpdateFlash, setManualUpdateFlash] = useState(false);
   const [settings, setSettings] = useState(null);
 
@@ -48,20 +48,26 @@ export default function App() {
 
   const latestReceivedAt = devices.find((d) => d.id === selectedDeviceId)?.latest?.received_at;
 
+  // Counts up locally from 0 instead of comparing Date.now() against the server
+  // timestamp - that comparison broke the countdown on machines with the wrong
+  // system clock/timezone (e.g. opening the dashboard on a different computer).
+  // This way the countdown only ever depends on this browser's own timer ticking,
+  // never on wall-clock agreement between the viewer and the server.
   useEffect(() => {
-    if (latestReceivedAt) setLastMeasurementAt(new Date(latestReceivedAt).getTime());
+    if (latestReceivedAt) setSecondsSinceLastMeasurement(0);
   }, [latestReceivedAt]);
 
   useEffect(() => {
-    if (!lastMeasurementAt) return;
-    const tick = () => {
-      const elapsedS = (Date.now() - lastMeasurementAt) / 1000;
-      setSecondsUntilNext(Math.max(0, Math.ceil(PUBLISH_INTERVAL_S - elapsedS)));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
+    const id = setInterval(() => {
+      setSecondsSinceLastMeasurement((s) => (s === null ? null : s + 1));
+    }, 1000);
     return () => clearInterval(id);
-  }, [lastMeasurementAt]);
+  }, []);
+
+  const secondsUntilNext =
+    secondsSinceLastMeasurement === null
+      ? null
+      : Math.max(0, PUBLISH_INTERVAL_S - secondsSinceLastMeasurement);
 
   function handleMessage(message) {
     if (message.type === "status") {
@@ -82,7 +88,7 @@ export default function App() {
       setSelectedDeviceId((current) => current ?? message.device.id);
       if (message.data.device_id === selectedDeviceId) {
         setMeasurements((prev) => [message.data, ...prev].slice(0, HISTORY_LIMIT));
-        setLastMeasurementAt(Date.now());
+        setSecondsSinceLastMeasurement(0);
         if (message.trigger === "button") {
           setManualUpdateFlash(true);
           setTimeout(() => setManualUpdateFlash(false), 2500);
@@ -143,8 +149,8 @@ export default function App() {
             />
             <MetricCard
               label="Luminosidade"
-              value={selectedDevice.latest?.luminosity}
-              unit=" lx"
+              value={toLuminosityPercent(selectedDevice.latest?.luminosity)}
+              unit="%"
               accent="#facc15"
             />
           </section>
@@ -165,10 +171,10 @@ export default function App() {
               color="#38bdf8"
             />
             <HistoryChart
-              title="Luminosidade (lx)"
-              data={measurements}
+              title="Luminosidade (%)"
+              data={withLuminosityPercent(measurements)}
               dataKey="luminosity"
-              unit="lx"
+              unit="%"
               color="#facc15"
             />
             <AlertSettings
@@ -176,7 +182,7 @@ export default function App() {
               onSave={handleSaveSettings}
               publishIntervalS={PUBLISH_INTERVAL_S}
             />
-            <HistorySearch deviceId={selectedDeviceId} />
+            <HistorySearch deviceId={selectedDeviceId} publishIntervalS={PUBLISH_INTERVAL_S} />
           </section>
         </>
       ) : (
