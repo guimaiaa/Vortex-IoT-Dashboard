@@ -180,8 +180,13 @@ void fetchSettings() {
 
   int status = http.GET();
   if (status == 200) {
+    // getString() (not getStream()) - cloud hosts like Render often respond with
+    // chunked transfer-encoding, and reading the raw stream directly can leak the
+    // chunk-size markers into the parser, breaking deserializeJson with InvalidInput.
+    // getString() fully buffers the (correctly de-chunked) body first.
+    String body = http.getString();
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, http.getStream());
+    DeserializationError err = deserializeJson(doc, body);
     if (!err) {
       float newHigh = doc["temp_high_threshold"] | tempHighThreshold;
       float newLow = doc["temp_low_threshold"] | tempLowThreshold;
