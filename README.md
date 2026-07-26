@@ -6,7 +6,7 @@ ESP32 + sensores → backend REST/WebSocket → dashboard web em tempo real.
 
 Veja `docs/architecture.md` para o diagrama de fluxo de dados, contrato da API e máquina de estados do firmware, e `docs/wiring.md` para o pinout completo.
 
-## 🔴 Ao vivo agora
+## Ao vivo agora
 
 **[pulseorigin.com.br/iot-dashboard](https://pulseorigin.com.br/iot-dashboard)** — o ESP32 físico deste projeto está ligado no meu quarto agora, publicando temperatura, umidade e luminosidade reais em tempo real. Qualquer pessoa pode abrir esse link e ver os dados atualizando sozinhos ao vivo, sem precisar rodar nada localmente.
 
