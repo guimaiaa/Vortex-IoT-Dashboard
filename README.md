@@ -68,7 +68,7 @@ Sobe backend (`:8000`) e frontend (`:5173` servido via Vite preview) juntos.
 O backend e o dashboard tambem podem rodar publicamente, sem depender do seu computador ligado:
 
 1. **Backend**: Render → New → Web Service → conecta o repositorio → Root Directory `Backend` (Docker, plano Free). Anota a URL publica gerada (`https://SEU-BACKEND.onrender.com`).
-2. **Frontend**: Render → New → Static Site → mesmo repositorio → Root Directory `Frontend`, Build Command `npm install && npm run build`, Publish Directory `dist`. Define a env var `VITE_API_URL` com a URL do backend do passo 1.
+2. **Frontend**: Render → New → Static Site → mesmo repositorio → Root Directory `Frontend`, Build Command `npm install && npm run build`, Publish Directory `dist`. Define a env var `VITE_API_URL` com a URL do backend do passo 1 (e `VITE_BASE_PATH=/iot-dashboard/` se for usar o proxy de dominio proprio - ver secao abaixo).
 3. **Firmware**: em `Firmware/include/config.h`, troca `SERVER_URL` para a URL publica do backend (com `https://`) — o firmware ja detecta automaticamente e usa `WiFiClientSecure` (necessario, o Render so aceita HTTPS).
 
 Limitacoes do plano gratuito: o backend "hiberna" apos ~15min sem uso (primeira requisicao depois disso demora uns 30-50s pra acordar), e o disco nao e persistente — o historico de medicoes no SQLite se perde a cada redeploy/reinicio do servico.
@@ -77,7 +77,7 @@ Limitacoes do plano gratuito: o backend "hiberna" apos ~15min sem uso (primeira 
 
 O dashboard tambem esta acessivel em `pulseorigin.com.br/iot-dashboard`, sem afetar o resto do site que ja roda nesse dominio. Como o Render so oferece dominio customizado no nivel de (sub)dominio inteiro (nao em um caminho especifico de um dominio existente), a solucao foi um **Cloudflare Worker** fazendo proxy:
 
-1. `Frontend/vite.config.js` builda com `base: "/iot-dashboard/"` — todo asset do HTML/JS referencia esse prefixo.
+1. `Frontend/vite.config.js` le `base` da env var `VITE_BASE_PATH` (default `/`) — no Render, essa env var e setada como `/iot-dashboard/` (alem de `VITE_API_URL`), fazendo todo asset do HTML/JS referenciar esse prefixo. Localmente (`npm run dev`, `docker compose up`) a env var nao existe, entao o build continua servindo da raiz normalmente.
 2. Um Cloudflare Worker (script em `docs/cloudflare-worker.js`) intercepta as requisicoes em `pulseorigin.com.br/iot-dashboard*`, remove esse prefixo e busca o conteudo real no Render (que continua servindo os arquivos na raiz dele), devolvendo a resposta como se fosse do proprio dominio.
 3. A URL no navegador nunca muda para `onrender.com` — o proxy acontece de forma transparente na borda da Cloudflare.
 
