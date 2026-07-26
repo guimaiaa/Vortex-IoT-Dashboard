@@ -102,4 +102,4 @@ LED onboard (Wemos D1 R32, cor unica — sem LED RGB externo): estado comunicado
 
 ## Deploy: Render + Cloudflare Worker (dominio proprio)
 
-Producao roda em tres pecas: backend (Render Web Service, Docker), frontend (Render Static Site, build com `base: "/iot-dashboard/"`) e um Cloudflare Worker (`docs/cloudflare-worker.js`) que faz proxy de `pulseorigin.com.br/iot-dashboard*` para o Static Site do Render, removendo o prefixo antes de repassar. Ver secao "Deploy em nuvem" no README para o passo a passo completo.
+Producao roda em tres pecas: backend (Render Web Service, Docker), frontend (Render Static Site, build com `VITE_BASE_PATH=/iot-dashboard/`) e um Cloudflare Worker (`docs/cloudflare-worker.js`) que faz proxy de `pulseorigin.com.br/iot-dashboard*` para o Static Site do Render, removendo o prefixo antes de repassar. Passo a passo completo em `docs/deploy.md`.

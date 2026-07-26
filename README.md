@@ -6,6 +6,10 @@ ESP32 + sensores → backend REST/WebSocket → dashboard web em tempo real.
 
 Veja `docs/architecture.md` para o diagrama de fluxo de dados, contrato da API e maquina de estados do firmware, e `docs/wiring.md` para o pinout completo.
 
+## 🔴 Ao vivo agora
+
+**[pulseorigin.com.br/iot-dashboard](https://pulseorigin.com.br/iot-dashboard)** - o ESP32 fisico deste projeto esta ligado no meu quarto agora, publicando temperatura, umidade e luminosidade reais em tempo real. Qualquer pessoa pode abrir esse link e ver os dados atualizando sozinhos, sem precisar rodar nada localmente.
+
 ## Estrutura
 
 ```
@@ -63,25 +67,11 @@ docker compose up --build
 
 Sobe backend (`:8000`) e frontend (`:5173` servido via Vite preview) juntos.
 
-## Deploy em nuvem (Render)
+## Sobre a instancia publica
 
-O backend e o dashboard tambem podem rodar publicamente, sem depender do seu computador ligado:
+A instancia ao vivo (`pulseorigin.com.br/iot-dashboard`) roda em tres pecas: o backend em um Web Service Docker no **Render**, o dashboard em um Static Site (tambem Render), e um **Cloudflare Worker** que faz proxy de `pulseorigin.com.br/iot-dashboard` para esse Static Site - assim o dashboard fica sob um dominio proprio sem afetar o resto do site que ja roda la.
 
-1. **Backend**: Render → New → Web Service → conecta o repositorio → Root Directory `Backend` (Docker, plano Free). Anota a URL publica gerada (`https://SEU-BACKEND.onrender.com`).
-2. **Frontend**: Render → New → Static Site → mesmo repositorio → Root Directory `Frontend`, Build Command `npm install && npm run build`, Publish Directory `dist`. Define a env var `VITE_API_URL` com a URL do backend do passo 1 (e `VITE_BASE_PATH=/iot-dashboard/` se for usar o proxy de dominio proprio - ver secao abaixo).
-3. **Firmware**: em `Firmware/include/config.h`, troca `SERVER_URL` para a URL publica do backend (com `https://`) — o firmware ja detecta automaticamente e usa `WiFiClientSecure` (necessario, o Render so aceita HTTPS).
-
-Limitacoes do plano gratuito: o backend "hiberna" apos ~15min sem uso (primeira requisicao depois disso demora uns 30-50s pra acordar), e o disco nao e persistente — o historico de medicoes no SQLite se perde a cada redeploy/reinicio do servico.
-
-### Dominio proprio sob um caminho (Cloudflare Worker)
-
-O dashboard tambem esta acessivel em `pulseorigin.com.br/iot-dashboard`, sem afetar o resto do site que ja roda nesse dominio. Como o Render so oferece dominio customizado no nivel de (sub)dominio inteiro (nao em um caminho especifico de um dominio existente), a solucao foi um **Cloudflare Worker** fazendo proxy:
-
-1. `Frontend/vite.config.js` le `base` da env var `VITE_BASE_PATH` (default `/`) — no Render, essa env var e setada como `/iot-dashboard/` (alem de `VITE_API_URL`), fazendo todo asset do HTML/JS referenciar esse prefixo. Localmente (`npm run dev`, `docker compose up`) a env var nao existe, entao o build continua servindo da raiz normalmente.
-2. Um Cloudflare Worker (script em `docs/cloudflare-worker.js`) intercepta as requisicoes em `pulseorigin.com.br/iot-dashboard*`, remove esse prefixo e busca o conteudo real no Render (que continua servindo os arquivos na raiz dele), devolvendo a resposta como se fosse do proprio dominio.
-3. A URL no navegador nunca muda para `onrender.com` — o proxy acontece de forma transparente na borda da Cloudflare.
-
-Efeito colateral aceito: como o build agora embute `/iot-dashboard/` em todos os caminhos, acessar `vortex-iot-frontend.onrender.com` diretamente (sem passar pelo proxy) quebra o carregamento dos assets — o dashboard foi desenhado pra ser acessado so pelo dominio proprio a partir de agora.
+A principal diferenca em relacao a rodar localmente: o firmware fala com o backend via `https://` em vez de `http://` (o Render so aceita HTTPS, entao o ESP32 usa `WiFiClientSecure` para isso), e o build do frontend recebe um prefixo de caminho extra (`/iot-dashboard/`) que so existe nesse deploy - localmente tudo continua servindo da raiz, sem esse prefixo. Passo a passo completo de como reproduzir esse deploy (incluindo o script do Worker) esta em `docs/deploy.md`.
 
 ## Testando sem hardware fisico
 
