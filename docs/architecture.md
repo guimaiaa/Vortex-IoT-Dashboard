@@ -22,16 +22,17 @@ flowchart LR
     ESP -- "Wi-Fi / HTTP POST JSON" --> API[Backend - FastAPI]
     API --> DB[(SQLite)]
     API -- "WebSocket broadcast" --> WEB[Dashboard - React]
-    WEB -- "GET /devices, /measurements" --> API
+    WEB -- "GET /devices, /measurements, /settings" --> API
+    WEB -- "PUT /settings" --> API
 ```
 
 ## Fluxo de dados
 
-1. O ESP32 lê os sensores a cada `PUBLISH_INTERVAL_MS` (10s por padrão) ou imediatamente após o botão central do joystick ser pressionado.
+1. O ESP32 lê os sensores a cada `PUBLISH_INTERVAL_MS` (10s por padrão) ou imediatamente após o botão central do joystick ser pressionado, e busca `GET /settings` no mesmo ciclo (ver "Limites de alerta" abaixo).
 2. O firmware monta um payload JSON e envia via `POST /measurements` para o backend.
 3. O backend valida o payload, cria/atualiza o registro do dispositivo (`devices`), grava a medição (`measurements`) e transmite a leitura para todos os clientes conectados via WebSocket (`/ws`).
 4. O backend também transmite periodicamente (a cada `STATUS_BROADCAST_INTERVAL_SECONDS`, 5s por padrão) o status online/offline de todos os dispositivos, calculado a partir de `last_seen`.
-5. O dashboard React carrega o estado inicial via REST (`GET /devices`, `GET /measurements`) e depois consome o WebSocket para atualizações em tempo real, sem precisar dar polling.
+5. O dashboard React carrega o estado inicial via REST (`GET /devices`, `GET /measurements`, `GET /settings`) e depois consome o WebSocket para atualizações em tempo real, sem precisar dar polling.
 
 ## Contrato da API
 
@@ -53,15 +54,19 @@ flowchart LR
   "temperature": 26.3,
   "humidity": 61,
   "luminosity": 420,
-  "timestamp": "2026-07-06T10:00:00"
+  "timestamp": "2026-07-06T10:00:00",
+  "trigger": "interval"
 }
 ```
+
+`trigger` é opcional (default `"interval"`) e não é persistido no banco - só existe para o dashboard destacar quando uma leitura veio do botão físico. Valores possíveis: `"interval"` (ciclo normal), `"boot"` (primeiro envio ao ligar) ou `"button"` (forçado pelo botão central do joystick).
 
 ### Mensagens WebSocket
 
 ```json
-{ "type": "measurement", "data": { ... }, "device": { ... } }
+{ "type": "measurement", "data": { ... }, "device": { ... }, "trigger": "interval" }
 { "type": "status", "devices": [ { ... }, { ... } ] }
+{ "type": "settings", "data": { "temp_high_threshold": 30.0, "temp_low_threshold": 10.0 } }
 ```
 
 ## Esquema do banco de dados
