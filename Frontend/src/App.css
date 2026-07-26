@@ -347,6 +347,22 @@
   padding: 10px;
 }
 
+/* Below this width, auto-fit still squeezes 2 narrow columns in - each chart ends up
+   too cramped to read comfortably. Force a single column instead of relying on
+   auto-fit's math, which varies with the exact viewport width. */
+@media (max-width: 700px) {
+  .metrics-grid,
+  .charts-grid,
+  .search-stats,
+  .search-charts {
+    grid-template-columns: 1fr;
+  }
+
+  .search-card {
+    grid-column: span 1;
+  }
+}
+
 .chart-empty {
   color: var(--text-muted);
   font-size: 14px;
