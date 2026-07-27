@@ -18,3 +18,28 @@ Todos os pinos estão definidos em um único lugar: `Firmware/include/config.h`.
 - **Joystick analógico (resistor ladder)**: os 5 botões compartilham um único pino ADC (`JOY_PIN`, GPIO 36). Os valores brutos de cada botão variam por módulo — use `JOY_CALIBRATE 1` em `config.h` para imprimir o valor lido no Serial Monitor, pressione cada botão e anote o número, depois preencha `JOY_UP_VALUE`/`JOY_DOWN_VALUE`/`JOY_LEFT_VALUE`/`JOY_RIGHT_VALUE`/`JOY_CENTER_VALUE`/`JOY_IDLE_VALUE` com os valores reais e volte `JOY_CALIBRATE` para `0`.
 - **GPIOs evitados de propósito**: 0, 2 (reservado para o LED onboard), 12, 15 (pinos de bootstrap), 1/3 (UART do Serial Monitor) e 6–11 (flash SPI interna).
 - **Credenciais Wi-Fi**: ficam em `Firmware/include/secrets.h` (gitignored), não em `config.h`. Copie `secrets.h.example` para `secrets.h` e preencha com sua rede real antes de compilar.
+
+---
+
+# Pinout / Wiring (Wemos D1 R32)
+
+*(English translation below - see above for the original Portuguese version.)*
+
+All pins are defined in a single place: `Firmware/include/config.h`. If your wiring is different, adjust the `#define`s there — no need to touch `main.cpp`.
+
+| Component | Pin | Note |
+|---|---|---|
+| DHT11 (data) | GPIO 4 | 10k pull-up resistor between VCC and DATA if the module doesn't have one built in |
+| LDR (analog output) | GPIO 34 | input-only pin, ideal for ADC; use an LDR + resistor voltage divider |
+| Onboard LED | GPIO 2 | LED already built into the Wemos D1 R32 board — no external LED in this project, so no wiring here |
+| Buzzer | GPIO 26 | passive buzzer (uses `tone()`); an active buzzer works the same but without frequency control |
+| Joystick (5 buttons) | GPIO 36 (VP) | a single analog pin (ADC1); "resistor ladder" type module — each button produces a different `analogRead()` value on that same pin. CENTER is the "button" required by the challenge |
+
+## Notes
+
+- **DHT11 sensor instead of DHT22/BME280**: the brief asks for DHT22 or BME280; this project uses the DHT11 because that was the sensor physically available during the challenge. The swap is just a constant in `config.h` (`USE_BME280` / `DHT_TYPE`) - the firmware already supports all three without changing any logic, so swapping the physical sensor is just a matter of having the component on hand.
+- **No external LED**: this project only uses the Wemos D1 R32's onboard LED (GPIO 2, single color) to indicate system state via blink pattern, not color — see `docs/architecture.md`.
+- **LDR**: the reading is a raw 0–4095 value (ESP32's 12-bit ADC), not calibrated lux. That's enough for the challenge (relative luminosity comparison). The raw value stored in the DB/API doesn't change, but the dashboard displays it as an inverted percentage (`Frontend/src/luminosity.js`) - on this specific wiring, total darkness reads close to 4095 (high ADC) and bright light reads close to 0 (low ADC), so the formula inverts it to show "more light = higher percentage", which makes sense for whoever's looking at the dashboard. If your voltage divider wiring is different (resistor and LDR swapped), the reading may come out in the opposite direction - adjust the sign in `toLuminosityPercent()` if that's your case.
+- **Analog joystick (resistor ladder)**: the 5 buttons share a single ADC pin (`JOY_PIN`, GPIO 36). The raw value for each button varies by module — set `JOY_CALIBRATE 1` in `config.h` to print the reading to the Serial Monitor, press each button and note the number, then fill in `JOY_UP_VALUE`/`JOY_DOWN_VALUE`/`JOY_LEFT_VALUE`/`JOY_RIGHT_VALUE`/`JOY_CENTER_VALUE`/`JOY_IDLE_VALUE` with the real values and set `JOY_CALIBRATE` back to `0`.
+- **GPIOs deliberately avoided**: 0, 2 (reserved for the onboard LED), 12, 15 (bootstrap pins), 1/3 (Serial Monitor UART), and 6–11 (internal SPI flash).
+- **Wi-Fi credentials**: live in `Firmware/include/secrets.h` (gitignored), not in `config.h`. Copy `secrets.h.example` to `secrets.h` and fill in your real network before compiling.
