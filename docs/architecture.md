@@ -79,7 +79,7 @@ Retenção de dados: um processo em background (`cleanup_loop`) roda a cada `CLE
 
 ## Pesquisa histórica
 
-O card "Pesquisar por data e hora" no dashboard deixa escolher um instante e uma janela (+/- 15min a +/- 6h), consulta `GET /measurements?since=...&until=...` e mostra estatísticas (mín/média/máx) e gráficos de temperatura/umidade/luminosidade daquele período, sem interferir na visualização "ao vivo" dos cards do topo.
+O card "Pesquisar por data e hora" no dashboard deixa escolher um instante e uma janela (+/- 30min a +/- 24h), consulta `GET /measurements?since=...&until=...` e mostra estatísticas (mín/média/máx) e gráficos de temperatura/umidade/luminosidade daquele período, sem interferir na visualização "ao vivo" dos cards do topo. O limite de linhas buscadas escala com o tamanho da janela (baseado no intervalo de publicação do firmware), para não truncar janelas maiores.
 
 ## Limites de alerta configuráveis pelo dashboard
 

@@ -18,7 +18,7 @@ vortex-iot/
 ├── Backend/     # FastAPI + SQLite + WebSocket
 ├── Frontend/    # dashboard Vite + React
 ├── docs/        # arquitetura e pinout
-├── video/       # vídeo de apresentação
+├── video/       # vídeo de apresentação (opcional aqui - entregue principalmente pelo link no formulário de inscrição)
 └── docker-compose.yml
 ```
 
