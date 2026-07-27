@@ -1,11 +1,10 @@
 .app {
   max-width: 960px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 48px 20px 48px;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 20px;
 }
 
