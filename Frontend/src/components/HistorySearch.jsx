@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { searchMeasurements } from "../api";
 import HistoryChart from "./HistoryChart";
 import { toLuminosityPercent, withLuminosityPercent } from "../luminosity";
@@ -56,7 +57,45 @@ function downloadCsv(csv, filename) {
   URL.revokeObjectURL(url);
 }
 
-function buildPdf({ results, deviceId, date, time, windowLabel, tempStats, humidityStats, luminosityStats }) {
+// Screenshots a chart's DOM node into a PNG data URL, keeping its real aspect ratio
+// so it doesn't come out stretched/squashed when placed into the PDF at full page width.
+async function captureChart(node) {
+  if (!node) return null;
+  const canvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 2 });
+  return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+}
+
+function addChartImages(doc, chartImages, startY) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const imgWidth = pageWidth - margin * 2;
+  let y = startY;
+
+  for (const chart of chartImages) {
+    if (!chart) continue;
+    const imgHeight = imgWidth * (chart.height / chart.width);
+    if (y + imgHeight > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.addImage(chart.dataUrl, "PNG", margin, y, imgWidth, imgHeight);
+    y += imgHeight + 8;
+  }
+  return y;
+}
+
+function buildPdf({
+  results,
+  deviceId,
+  date,
+  time,
+  windowLabel,
+  tempStats,
+  humidityStats,
+  luminosityStats,
+  chartImages,
+}) {
   const doc = new jsPDF();
 
   doc.setFontSize(18);
@@ -86,10 +125,11 @@ function buildPdf({ results, deviceId, date, time, windowLabel, tempStats, humid
     headStyles: { fillColor: ACCENT_RGB },
   });
 
-  const afterStatsY = doc.lastAutoTable.finalY + 8;
+  const afterChartsY = addChartImages(doc, chartImages, doc.lastAutoTable.finalY + 8);
+
   doc.setFontSize(12);
   doc.setTextColor(20);
-  doc.text(`Leituras (${results.length})`, 14, afterStatsY);
+  doc.text(`Leituras (${results.length})`, 14, afterChartsY);
 
   const rows = [...results].reverse().map((m) => [
     m.timestamp,
@@ -99,7 +139,7 @@ function buildPdf({ results, deviceId, date, time, windowLabel, tempStats, humid
   ]);
 
   autoTable(doc, {
-    startY: afterStatsY + 4,
+    startY: afterChartsY + 4,
     head: [["Timestamp", "Temp (°C)", "Umidade (%)", "Luminosidade"]],
     body: rows,
     theme: "grid",
@@ -118,6 +158,10 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const tempChartRef = useRef(null);
+  const humidityChartRef = useRef(null);
+  const luminosityChartRef = useRef(null);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -148,19 +192,28 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
     downloadCsv(csv, filename);
   }
 
-  function handleExportPdf() {
-    const windowLabel = WINDOW_OPTIONS.find((opt) => opt.minutes === windowMinutes)?.label ?? "";
-    const doc = buildPdf({
-      results,
-      deviceId,
-      date,
-      time,
-      windowLabel,
-      tempStats,
-      humidityStats,
-      luminosityStats,
-    });
-    doc.save(`vortex-iot_${deviceId}_${date}_${time.replace(":", "")}.pdf`);
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      const windowLabel = WINDOW_OPTIONS.find((opt) => opt.minutes === windowMinutes)?.label ?? "";
+      const chartImages = await Promise.all(
+        [tempChartRef, humidityChartRef, luminosityChartRef].map((ref) => captureChart(ref.current))
+      );
+      const doc = buildPdf({
+        results,
+        deviceId,
+        date,
+        time,
+        windowLabel,
+        tempStats,
+        humidityStats,
+        luminosityStats,
+        chartImages,
+      });
+      doc.save(`vortex-iot_${deviceId}_${date}_${time.replace(":", "")}.pdf`);
+    } finally {
+      setExportingPdf(false);
+    }
   }
 
   const tempStats = results ? computeStats(results.map((m) => m.temperature)) : null;
@@ -233,6 +286,7 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
           </div>
           <div className="search-charts">
             <HistoryChart
+              chartRef={tempChartRef}
               title="Temperatura (°C)"
               data={results}
               dataKey="temperature"
@@ -240,6 +294,7 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
               color="#f97316"
             />
             <HistoryChart
+              chartRef={humidityChartRef}
               title="Umidade (%)"
               data={results}
               dataKey="humidity"
@@ -247,6 +302,7 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
               color="#38bdf8"
             />
             <HistoryChart
+              chartRef={luminosityChartRef}
               title="Luminosidade (%)"
               data={resultsWithLuminosityPercent}
               dataKey="luminosity"
@@ -258,8 +314,13 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
             <button type="button" className="export-csv-button" onClick={handleExportCsv}>
               Exportar CSV
             </button>
-            <button type="button" className="export-pdf-button" onClick={handleExportPdf}>
-              Exportar PDF
+            <button
+              type="button"
+              className="export-pdf-button"
+              onClick={handleExportPdf}
+              disabled={exportingPdf}
+            >
+              {exportingPdf ? "Gerando PDF..." : "Exportar PDF"}
             </button>
           </div>
         </>

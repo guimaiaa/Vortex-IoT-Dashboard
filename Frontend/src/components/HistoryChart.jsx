@@ -16,13 +16,13 @@ function formatTime(iso) {
   });
 }
 
-export default function HistoryChart({ title, data, dataKey, unit, color }) {
+export default function HistoryChart({ title, data, dataKey, unit, color, chartRef }) {
   const chartData = [...data]
     .reverse()
     .map((m) => ({ time: formatTime(m.timestamp), value: m[dataKey] }));
 
   return (
-    <div className="chart-card">
+    <div className="chart-card" ref={chartRef}>
       <h3>{title}</h3>
       {chartData.length === 0 ? (
         <p className="chart-empty">No data yet</p>

@@ -377,8 +377,13 @@
   color: white;
 }
 
-.export-pdf-button:hover {
+.export-pdf-button:hover:not(:disabled) {
   filter: brightness(1.1);
+}
+
+.export-pdf-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* Below this width, auto-fit still squeezes 2 narrow columns in - each chart ends up
