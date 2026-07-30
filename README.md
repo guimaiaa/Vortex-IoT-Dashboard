@@ -26,6 +26,8 @@ vortex-iot/
 
 ### Backend
 
+Requer **Python 3.10+** (o código usa a sintaxe `X | None` nos type hints, que não existe em versões anteriores).
+
 ```bash
 cd Backend
 python3 -m venv .venv && source .venv/bin/activate
@@ -114,6 +116,8 @@ vortex-iot/
 ## How to run
 
 ### Backend
+
+Requires **Python 3.10+** (the code uses `X | None` type hint syntax, not available in earlier versions).
 
 ```bash
 cd Backend
