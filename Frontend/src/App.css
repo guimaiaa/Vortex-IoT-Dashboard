@@ -346,7 +346,15 @@
   padding: 10px;
 }
 
-.export-csv-button {
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.export-csv-button,
+.export-pdf-button {
   font: inherit;
   font-weight: 600;
   padding: 9px 20px;
@@ -355,13 +363,22 @@
   background: var(--card-bg);
   color: var(--text);
   cursor: pointer;
-  margin-top: 16px;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .export-csv-button:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.export-pdf-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.export-pdf-button:hover {
+  filter: brightness(1.1);
 }
 
 /* Below this width, auto-fit still squeezes 2 narrow columns in - each chart ends up

@@ -1,7 +1,11 @@
 import { useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { searchMeasurements } from "../api";
 import HistoryChart from "./HistoryChart";
 import { toLuminosityPercent, withLuminosityPercent } from "../luminosity";
+
+const ACCENT_RGB = [99, 102, 241];
 
 const WINDOW_OPTIONS = [
   { label: "+/- 30 min", minutes: 30 },
@@ -52,6 +56,60 @@ function downloadCsv(csv, filename) {
   URL.revokeObjectURL(url);
 }
 
+function buildPdf({ results, deviceId, date, time, windowLabel, tempStats, humidityStats, luminosityStats }) {
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.setTextColor(...ACCENT_RGB);
+  doc.text("Vortex IoT — Relatorio de historico", 14, 18);
+
+  doc.setFontSize(10);
+  doc.setTextColor(90);
+  doc.text(`Dispositivo: ${deviceId}`, 14, 26);
+  doc.text(`Instante pesquisado: ${date} ${time}  |  Janela: ${windowLabel}`, 14, 31);
+  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 36);
+
+  autoTable(doc, {
+    startY: 42,
+    head: [["Metrica", "Minimo", "Media", "Maximo"]],
+    body: [
+      ["Temperatura (°C)", tempStats.min.toFixed(1), tempStats.avg.toFixed(1), tempStats.max.toFixed(1)],
+      ["Umidade (%)", humidityStats.min.toFixed(1), humidityStats.avg.toFixed(1), humidityStats.max.toFixed(1)],
+      [
+        "Luminosidade (%)",
+        luminosityStats.min.toFixed(0),
+        luminosityStats.avg.toFixed(0),
+        luminosityStats.max.toFixed(0),
+      ],
+    ],
+    theme: "striped",
+    headStyles: { fillColor: ACCENT_RGB },
+  });
+
+  const afterStatsY = doc.lastAutoTable.finalY + 8;
+  doc.setFontSize(12);
+  doc.setTextColor(20);
+  doc.text(`Leituras (${results.length})`, 14, afterStatsY);
+
+  const rows = [...results].reverse().map((m) => [
+    m.timestamp,
+    m.temperature.toFixed(1),
+    m.humidity.toFixed(1),
+    `${toLuminosityPercent(m.luminosity)}%`,
+  ]);
+
+  autoTable(doc, {
+    startY: afterStatsY + 4,
+    head: [["Timestamp", "Temp (°C)", "Umidade (%)", "Luminosidade"]],
+    body: rows,
+    theme: "grid",
+    headStyles: { fillColor: ACCENT_RGB },
+    styles: { fontSize: 8 },
+  });
+
+  return doc;
+}
+
 export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
   const now = new Date();
   const [date, setDate] = useState(toDateValue(now));
@@ -88,6 +146,21 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
     const csv = toCsv(results);
     const filename = `vortex-iot_${deviceId}_${date}_${time.replace(":", "")}.csv`;
     downloadCsv(csv, filename);
+  }
+
+  function handleExportPdf() {
+    const windowLabel = WINDOW_OPTIONS.find((opt) => opt.minutes === windowMinutes)?.label ?? "";
+    const doc = buildPdf({
+      results,
+      deviceId,
+      date,
+      time,
+      windowLabel,
+      tempStats,
+      humidityStats,
+      luminosityStats,
+    });
+    doc.save(`vortex-iot_${deviceId}_${date}_${time.replace(":", "")}.pdf`);
   }
 
   const tempStats = results ? computeStats(results.map((m) => m.temperature)) : null;
@@ -181,9 +254,14 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
               color="#facc15"
             />
           </div>
-          <button type="button" className="export-csv-button" onClick={handleExportCsv}>
-            Exportar CSV
-          </button>
+          <div className="export-buttons">
+            <button type="button" className="export-csv-button" onClick={handleExportCsv}>
+              Exportar CSV
+            </button>
+            <button type="button" className="export-pdf-button" onClick={handleExportPdf}>
+              Exportar PDF
+            </button>
+          </div>
         </>
       )}
     </div>
