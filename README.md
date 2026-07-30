@@ -85,6 +85,40 @@ curl -X POST http://localhost:8000/measurements \
   -d '{"device":"VTX001","temperature":26.3,"humidity":61,"luminosity":420,"timestamp":"2026-07-24T15:00:00"}'
 ```
 
+## Inteligência Artificial e Diário de Bordo
+
+**Ferramentas utilizadas**: Claude Code (Anthropic), modelo Sonnet 5, no modo agente com acesso a terminal/arquivos.
+
+**Uso**: planejamento da arquitetura (backend FastAPI + WebSocket, dashboard React, firmware PlatformIO), geração do código de cada camada, revisão do projeto contra o edital, instalação/configuração do toolchain local (Node, PlatformIO), execução de testes automatizados (`pytest`), deploy em nuvem (Render + Cloudflare Worker) e depuração de bugs reais encontrados ao testar com o hardware físico.
+
+**Prompts importantes**:
+- Um prompt grande no início, pedindo para a IA desenhar um planejamento e modelo inicial do projeto inteiro. Depois que ela trouxe esse planejamento, pedi para a própria IA julgar o planejamento que ela mesma tinha acabado de gerar. É uma técnica que na maioria das vezes funciona muito bem: ela consegue apontar erros e inconsistências do primeiro resultado dela, e a segunda versão do planejamento sai bem mais sólida do que a primeira.
+- Pedido inicial e final para revisar o projeto contra o PDF do edital.
+- Pedido de features novas (contador de próxima leitura, aviso de atualização manual, configuração de alerta pelo dashboard, busca histórica, limpeza automática do banco, deploy em nuvem com domínio próprio).
+
+**Dificuldades encontradas**:
+- `LEDC is not initialized` no Serial Monitor, testando o buzzer pela primeira vez: antes de mexer no código, conferi se a fiação do buzzer estava certa, estava tudo certo. Só depois de descartar o hardware fui olhar a lógica no código, onde o problema realmente estava (o firmware chamava `noTone()` toda hora, mesmo antes do buzzer ter tocado uma vez sequer). Corrigido, o erro parou de aparecer.
+- Calibração do joystick analógico (módulo resistor ladder, 5 botões num pino só): já tinha os valores calibrados de um projeto anterior meu (o RelogioCorreio, também com ESP32, no GitHub), usando o mesmo módulo de joystick, reaproveitei essa experiência em vez de calibrar do zero.
+- Ainda hoje, às vezes preciso apertar o botão do joystick com mais força pra registrar o clique. Acredito que seja porque, sendo um joystick analógico (usa resistores diferentes pra variar a tensão de cada botão), não existe uma calibração 100% fixa e exata, perto da borda da faixa de cada botão, o contato pode não firmar direito.
+- Bug de fuso horário, "próxima leitura" chegou a mostrar "10810s" (commit 03cb0ed e 990bac2): demorei um pouco pra perceber o padrão. Percebi que o problema parecia estar ligado a qual dispositivo estava acessando o dashboard, o que me fez pensar que o problema não estava no dado guardado, e sim em como cada aparelho interpretava esse dado, foi esse raciocínio que levou à correção (o backend passou a marcar os horários explicitamente como UTC, e o contador de "próxima leitura" parou de depender do relógio de quem está vendo a tela, contando localmente a partir da última leitura recebida).
+- CSS do dashboard sumindo (404) logo depois do primeiro deploy no Render: percebi na hora que a página estava toda sem estilo, mas não cheguei a entender a causa exata, parece ter sido um erro pontual do próprio Render no upload daquele deploy específico. Um novo deploy ("clear cache & deploy") resolveu.
+- Erro `JSON parse failed: InvalidInput` buscando `/settings` já na nuvem: demorei mais pra relacionar esse com a mudança pra nuvem. Minha primeira impressão foi que o dado "não estava formatado direito pro código entender", o que no fim não estava tão longe da causa real (o servidor manda a resposta "picada" em pedaços, e a forma como o firmware lia não montava isso direito antes de tentar interpretar o JSON).
+- Git: já tinha experiência com Git antes, mas não tinha domínio total de merge, precisei pesquisar um pouco pra entender e resolver um push rejeitado por branches divergentes. E os commits que não aparecem com minha foto de perfil simplesmente porque eu ainda não tinha configurado o `user.email` (tinha esquecido mesmo, resolvido rápido).
+
+**Como validei as respostas da IA**:
+- Backend: suíte de testes automatizados (`pytest`, 7 casos incluindo o broadcast via WebSocket) rodando contra um banco SQLite temporário, além de chamadas `curl` manuais contra o servidor real (local e em produção no Render).
+- Frontend: `npm run build` sem erros, dashboard testado ao vivo no navegador (desktop e celular), conferindo se os dados batiam com o que o ESP32 físico estava enviando.
+- Firmware: compilado com `pio run` contra a placa `wemos_d1_uno32` antes de cada gravação, e testado fisicamente no hardware real, Serial Monitor, sensores, LED, buzzer e joystick.
+- Deploy: testado com `curl` direto nas URLs públicas (backend e frontend) e conferido visualmente no navegador, de diferentes redes.
+
+**Reflexão crítica**:
+
+A IA ajudou muito na parte técnica e na formatação/organização do projeto, e foi essencial em vários momentos, mas onde ela não me ajuda muito é na parte visual e criativa. Um exemplo, no começo, o dashboard veio com tema escuro, e eu queria claro; teve também escolhas de como mostrar o valor de luminosidade, formatação de botões e outros detalhes visuais que eu não achei que combinavam e pedi pra mudar. Isso reforça pra mim que decisão de design/estética ainda é uma parte onde a palavra final tem que ser minha, na maioria das vezes que discordei de alguma sugestão, era sobre isso.
+
+Teve bastante coisa que só eu conseguia testar e validar, porque envolvia o hardware físico de verdade: fiação, os sensores em diferentes ambientes e condições (pra confirmar que estavam calibrados e sem nenhum problema físico), e testar o site em diferentes aparelhos e plataformas. Essa parte de teste prático ficou separada do trabalho com a IA, mas foi importantíssima pra achar e corrigir erros que só apareciam no mundo real e com testes reais.
+
+Tecnicamente, já tinha trabalhado um pouco com requisições HTTP antes, mas aprendi muito mais nesse projeto. A parte de nuvem foi um pouco nova pra mim, nunca tinha usado o Render, e gostei bastante de mexer nele, apesar das limitações do plano gratuito, por exemplo, o servidor entra em "standby" depois de um tempo sem receber dado, e quando isso acontece ele para de salvar no banco, isso já foi avisado quando criei a conta, mas só senti a diferença na prática depois que comecei a usar o deploy em nuvem, já que no começo do projeto eu estava rodando tudo só local. Também gostei de como ficou organizado o repositório no GitHub, talvez eu ainda adicione mais fotos/capturas de tela pra completar antes da entrega final. No geral, foi um projeto que gostei bastante de fazer, pensando nele isoladamente, sem nem pensar no processo seletivo.
+
 ---
 
 # Vortex IoT — Smart Environment Monitoring Platform
