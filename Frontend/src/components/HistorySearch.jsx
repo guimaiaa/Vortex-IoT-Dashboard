@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { searchMeasurements } from "../api";
 import HistoryChart from "./HistoryChart";
-import { withLuminosityPercent } from "../luminosity";
+import { toLuminosityPercent, withLuminosityPercent } from "../luminosity";
 
 const WINDOW_OPTIONS = [
   { label: "+/- 30 min", minutes: 30 },
@@ -30,6 +30,26 @@ function computeStats(values) {
   const max = Math.max(...values);
   const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
   return { min, max, avg };
+}
+
+function toCsv(results) {
+  const header = "timestamp,temperature_c,humidity_pct,luminosity_raw,luminosity_pct";
+  // Oldest first reads more naturally as a time series than the API's newest-first order.
+  const rows = [...results].reverse().map((m) => {
+    const luminosityPct = toLuminosityPercent(m.luminosity);
+    return `${m.timestamp},${m.temperature},${m.humidity},${m.luminosity},${luminosityPct}`;
+  });
+  return [header, ...rows].join("\n");
+}
+
+function downloadCsv(csv, filename) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
@@ -63,6 +83,12 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
   }
 
   const resultsWithLuminosityPercent = results ? withLuminosityPercent(results) : null;
+
+  function handleExportCsv() {
+    const csv = toCsv(results);
+    const filename = `vortex-iot_${deviceId}_${date}_${time.replace(":", "")}.csv`;
+    downloadCsv(csv, filename);
+  }
 
   const tempStats = results ? computeStats(results.map((m) => m.temperature)) : null;
   const humidityStats = results ? computeStats(results.map((m) => m.humidity)) : null;
@@ -155,6 +181,9 @@ export default function HistorySearch({ deviceId, publishIntervalS = 10 }) {
               color="#facc15"
             />
           </div>
+          <button type="button" className="export-csv-button" onClick={handleExportCsv}>
+            Exportar CSV
+          </button>
         </>
       )}
     </div>

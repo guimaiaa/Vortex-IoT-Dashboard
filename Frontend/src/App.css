@@ -346,6 +346,24 @@
   padding: 10px;
 }
 
+.export-csv-button {
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  margin-top: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.export-csv-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Below this width, auto-fit still squeezes 2 narrow columns in - each chart ends up
    too cramped to read comfortably. Force a single column instead of relying on
    auto-fit's math, which varies with the exact viewport width. */

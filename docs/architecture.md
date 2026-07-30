@@ -81,6 +81,8 @@ Retenção de dados: um processo em background (`cleanup_loop`) roda a cada `CLE
 
 O card "Pesquisar por data e hora" no dashboard deixa escolher um instante e uma janela (+/- 30min a +/- 24h), consulta `GET /measurements?since=...&until=...` e mostra estatísticas (mín/média/máx) e gráficos de temperatura/umidade/luminosidade daquele período, sem interferir na visualização "ao vivo" dos cards do topo. O limite de linhas buscadas escala com o tamanho da janela (baseado no intervalo de publicação do firmware), para não truncar janelas maiores.
 
+Os resultados podem ser exportados em CSV (botão "Exportar CSV", gerado 100% no navegador, sem chamada extra ao backend) com as colunas `timestamp, temperature_c, humidity_pct, luminosity_raw, luminosity_pct` - inclui o valor bruto da luminosidade e a porcentagem convertida, em ordem cronológica (mais antigo primeiro).
+
 ## Limites de alerta configuráveis pelo dashboard
 
 O card "Configuração de alerta" no dashboard permite editar `temp_high_threshold`/`temp_low_threshold` sem regravar o firmware. Como o ESP32 nunca recebe conexão (só faz requisições), ele busca esses valores via `GET /settings` a cada ciclo de publicação (`PUBLISH_INTERVAL_MS`, 10s por padrão) - ou seja, uma mudança no dashboard leva até um ciclo para ser aplicada no firmware físico. Os valores em `Firmware/include/config.h` (`TEMP_HIGH_THRESHOLD_C`/`TEMP_LOW_THRESHOLD_C`) continuam existindo como fallback: são usados no boot e sempre que o `GET /settings` falha (Wi-Fi fora do ar, backend indisponível).
@@ -195,6 +197,8 @@ Data retention: a background process (`cleanup_loop`) runs every `CLEANUP_INTERV
 ## Historical search
 
 The "Search by date and time" card on the dashboard lets you pick an instant and a window (+/- 30min to +/- 24h), queries `GET /measurements?since=...&until=...`, and shows statistics (min/avg/max) and temperature/humidity/luminosity charts for that period, without interfering with the "live" cards at the top. The row limit for the query scales with the window size (based on the firmware's publish interval), so larger windows don't get truncated.
+
+Results can be exported as CSV (the "Exportar CSV" button, generated entirely in the browser, no extra backend call) with columns `timestamp, temperature_c, humidity_pct, luminosity_raw, luminosity_pct` - includes both the raw luminosity value and the converted percentage, in chronological order (oldest first).
 
 ## Dashboard-configurable alert thresholds
 
