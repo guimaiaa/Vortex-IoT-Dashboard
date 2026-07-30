@@ -65,24 +65,33 @@ async function captureChart(node) {
   return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
 }
 
+// Places all charts side by side in a single row (each ~1/3 of the page width)
+// instead of stacking them full-width, one per page.
 function addChartImages(doc, chartImages, startY) {
+  const validCharts = chartImages.filter(Boolean);
+  if (validCharts.length === 0) return startY;
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
-  const imgWidth = pageWidth - margin * 2;
-  let y = startY;
+  const gap = 6;
+  const colWidth = (pageWidth - margin * 2 - gap * (validCharts.length - 1)) / validCharts.length;
+  const rowHeight = Math.max(...validCharts.map((c) => colWidth * (c.height / c.width)));
 
-  for (const chart of chartImages) {
-    if (!chart) continue;
-    const imgHeight = imgWidth * (chart.height / chart.width);
-    if (y + imgHeight > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
-    }
-    doc.addImage(chart.dataUrl, "PNG", margin, y, imgWidth, imgHeight);
-    y += imgHeight + 8;
+  let y = startY;
+  if (y + rowHeight > pageHeight - margin) {
+    doc.addPage();
+    y = margin;
   }
-  return y;
+
+  let x = margin;
+  for (const chart of validCharts) {
+    const imgHeight = colWidth * (chart.height / chart.width);
+    doc.addImage(chart.dataUrl, "PNG", x, y, colWidth, imgHeight);
+    x += colWidth + gap;
+  }
+
+  return y + rowHeight + 8;
 }
 
 function buildPdf({
