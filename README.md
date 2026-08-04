@@ -87,9 +87,9 @@ curl -X POST http://localhost:8000/measurements \
 
 ## Inteligência Artificial e Diário de Bordo
 
-**Ferramentas utilizadas**: Claude Code (Anthropic), modelo Sonnet 5, no modo agente com acesso a terminal/arquivos.
+**Ferramentas utilizadas**: Claude Code (Anthropic), modelo Sonnet 5 high - Chat GPT, modelo GPT-5.5 - Google Gemini 3.1 Pro.
 
-**Uso**: planejamento da arquitetura (backend FastAPI + WebSocket, dashboard React, firmware PlatformIO), geração do código de cada camada, revisão do projeto contra o edital, instalação/configuração do toolchain local (Node, PlatformIO), execução de testes automatizados (`pytest`), deploy em nuvem (Render + Cloudflare Worker) e depuração de bugs reais encontrados ao testar com o hardware físico.
+**Uso**: planejamento da arquitetura (backend FastAPI + WebSocket, dashboard React, firmware PlatformIO), geração do código de cada camada, revisão do projeto contra o edital, instalação/configuração do toolchain local (Node, PlatformIO), execução de testes automatizados (`pytest`), deploy em nuvem (Render + Cloudflare Worker).
 
 **Prompts importantes**:
 - Um prompt grande no início, pedindo para a IA desenhar um planejamento e modelo inicial do projeto inteiro. Depois que ela trouxe esse planejamento, pedi para a própria IA julgar o planejamento que ela mesma tinha acabado de gerar. É uma técnica que na maioria das vezes funciona muito bem: ela consegue apontar erros e inconsistências do primeiro resultado dela, e a segunda versão do planejamento sai bem mais sólida do que a primeira.
